@@ -15,8 +15,6 @@
 #include <fstream>
 #include <print>
 #include <string>
-#include <iostream>
-#include <algorithm>
 #include <vector>
 #include <unordered_map>
 
@@ -40,7 +38,7 @@ int main(int argc, char** argv) {
 
     std::vector<std::string> subs = {"wscript.exe", ".locked", "certutil.exe", "\\Startup\\"};
     std::vector<int> cnts = {0, 0, 0, 0};
-    std::unordered_map<std::string, int> counter = {};
+    std::unordered_map<std::string, int> counter;
 
     while (std::getline(log, line)) {
         // Счётчик увеличивается до всех проверок: он считает строки файла,
@@ -56,21 +54,21 @@ int main(int argc, char** argv) {
         }
 
         // >>> Здесь начинается занятие 1.1.
-        for (int i = 0; i < 4; i++) {
-            if(line.find(subs[i]) != std::string::npos && line.size() > 0 && line[0] != '#') {
-                std::cout << "[DETECT] строка " << lines << ", признак " << subs[i] << ": " << line << std::endl;
+        for (int i = 0; i < subs.size(); i++) {
+            if(line.find(subs[i]) != std::string::npos) {
+                std::print("[DETECT] строка {}, признак {}: {}\n", lines, subs[i], line);
                 cnts[i]++;
 
             }
         
         }
-        std::string ername = line.substr(line.find("type") + 5, line.find(" ", line.find("type") + 5) - (line.find("type") + 5));
+        std::string ername = line.substr(line.find("type=") + 5, line.find(" ", line.find("type=") + 5) - (line.find("type=") + 5));
         counter[ername]++;
         // Проверка признаков и печать детекта. Номер строки, который нужен
         // в выводе, — это lines.
     }
     bool flag = true;
-    for(int i = 0; i < argc; ++i) {
+    for(int i = 1; i < argc; ++i) {
         if(std::string(argv[i]) == "--quiet") {
             flag = false;
         }
