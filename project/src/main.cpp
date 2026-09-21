@@ -11,15 +11,16 @@
 #include "../kit/include/l1.2/event_list.h"
 
 int main(int argc, char** argv) {
-    const std::vector<std::string> attributes = {
+    const std::vector<std::string> markers = {
         "wscript.exe",
         ".locked",
         "certutil.exe",
         "\\Startup\\",
     };
 
-    bool is_quiet  = false;
-    long long window_size = 64;
+    const long long default_window = 64;
+    long long window_size = default_window;
+    bool silent_mode = false;
 
     if (argc < 2) {
         std::print(stderr, "использование: nano-edr <журнал.log>\n");
@@ -32,79 +33,101 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    // --- аргументы -------------------------------------------------------
+ 
+
+
     for (int i = 2; i < argc; ++i) {
-        std::string a = argv[i];
-        if (a == "--quiet") {
-            is_quiet = true;
-        } else if (a == "--window-size" && i + 1 < argc) {
-            const char* s = argv[i + 1];
-            long long n = 0;
-            auto [p, ec] = std::from_chars(s, s + std::strlen(s), n);
-            if (ec == std::errc() && n >= 0) { window_size = n; ++i; }
+        const std::string arg = argv[i];
+
+        if (arg == "--quiet") {
+            silent_mode = true;
+            continue;
+        }
+
+        if (arg == "--window-size" && i + 1 < argc) {
+            const char* raw = argv[i + 1];
+            long long parsed = 0;
+            const auto [end, err] =
+                std::from_chars(raw, raw + std::strlen(raw), parsed);
+            if (err == std::errc() && parsed >= 0) {
+                window_size = parsed;
+                ++i;
+            }
         }
     }
 
-    // --- окно ------------------------------------------------------------
+
     nano_edr::EventList window{};
     window.head     = nullptr;
     window.tail     = nullptr;
     window.size     = 0;
-    window.capacity = (std::size_t)window_size;
+    window.capacity = static_cast<std::size_t>(window_size);
 
-    long long lines = 0, comments = 0, events = 0;
-    std::unordered_map<std::string, long long> event_types_count;
-    std::string line;
+    long long total_lines    = 0;
+    long long comment_lines  = 0;
+    long long parsed_events  = 0;
 
-    while (std::getline(log, line)) {
-        ++lines;
-        if (nano_edr::IsBlankOrComment(&line)) {
-            if (!line.empty()) ++comments;
+    std::unordered_map<std::string, long long> type_tally;
+    std::string current;
+
+    while (std::getline(log, current)) {
+        ++total_lines;
+
+        if (nano_edr::IsBlankOrComment(&current)) {
+            if (!current.empty()) {
+                ++comment_lines;
+            }
             continue;
         }
 
-        // 1) печатаем все детекты по этой строке
-        bool detected = false;
-        for (auto& attribute : attributes) {
-            if (line.find(attribute) != std::string::npos) {
+
+        bool flagged = false;
+        for (const auto& marker : markers) {
+            if (current.find(marker) != std::string::npos) {
                 std::print("[DETECT] строка {}, признак {}: {}\n",
-                           lines, attribute, line);
-                detected = true;
+                           total_lines, marker, current);
+                flagged = true;
             }
         }
 
-        // 2) разбираем
-        nano_edr::Event ev;
-        if (!nano_edr::ParseEventLine(&line, &ev)) continue;
 
-        ++events;
-        ++event_types_count[ev.type];
+        nano_edr::Event parsed{};
+        if (!nano_edr::ParseEventLine(&current, &parsed)) {
+            continue;
+        }
 
-        // 3) контекст печатаем ДО того, как текущее событие уйдёт в окно,
-        //    и только если детекты были и не --quiet
-        if (detected && !is_quiet) {
-            std::vector<const nano_edr::Event*> recent;
-            for (nano_edr::EventNode* n = window.head; n; n = n->next)
-                recent.push_back(&n->event);
+        ++parsed_events;
+        ++type_tally[parsed.type];
 
-            int total = (int)recent.size();
-            int start = total > 2 ? total - 2 : 0;
-            for (int k = start; k < total; ++k) {
-                const nano_edr::Event* e = recent[k];
+
+        if (flagged && !silent_mode) {
+            std::vector<const nano_edr::Event*> snapshot;
+            for (nano_edr::EventNode* cursor = window.head; cursor;
+                 cursor = cursor->next) {
+                snapshot.push_back(&cursor->event);
+            }
+
+            const int count = static_cast<int>(snapshot.size());
+            const int first = count > 2 ? count - 2 : 0;
+
+            for (int idx = first; idx < count; ++idx) {
+                const nano_edr::Event* entry = snapshot[idx];
                 std::print("[CTX] {}: ts={} type={} pid={}\n",
-                           k - total, e->ts, e->type, e->pid);
+                           idx - count, entry->ts, entry->type, entry->pid);
             }
         }
 
-        // 4) кладём в окно
-        ListPushBack(&window, &ev);
+        ListPushBack(&window, &parsed);
     }
 
-    if (!is_quiet) {
-        std::println("строк {}, из них комментариев {}\n", lines, comments);
-        std::println("событий всего : {}", events);
-        for (auto& [type, count] : event_types_count)
-            std::println("событий типа {} всего : {}", type, count);
+    if (!silent_mode) {
+        std::print("строк {}, из них комментариев {}\n",
+                   total_lines, comment_lines);
+        std::print("событий всего : {}", parsed_events);
+        for (const auto& [type, amount] : type_tally) {
+            std::print("событий типа {} всего : {}", type, amount);
+        }
     }
+
     return 0;
 }
