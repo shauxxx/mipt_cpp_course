@@ -7,8 +7,7 @@ bool IsBlankOrComment(const std::string* line) {
 
     std::size_t i = 0;
     while (i < line->size() &&
-           ((*line)[i] == ' '  || (*line)[i] == '\t' ||
-            (*line)[i] == '\r' || (*line)[i] == '\n')) {
+           ((*line)[i] == ' '  || (*line)[i] == '\t')) {
         ++i;
     }
     if (i >= line->size()) return true;

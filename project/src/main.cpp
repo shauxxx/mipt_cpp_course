@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "../kit/include/l1.2/parse.h"
-#include "../kit/include/l1.2/event_list.h"
+#include "parse.h"
+#include "event_list.h"
 
 int main(int argc, char** argv) {
     bool is_quiet  = false;
@@ -39,7 +39,9 @@ int main(int argc, char** argv) {
             const char* s = argv[i + 1];
             long long n = 0;
             auto [p, ec] = std::from_chars(s, s + std::strlen(s), n);
-            if (ec == std::errc() && n >= 0) { window_size = n; ++i; }
+            if (ec == std::errc() && n >= 0) {
+                window_size = n; ++i; 
+            }
         }
     }
 
@@ -47,9 +49,11 @@ int main(int argc, char** argv) {
     window.head = nullptr;
     window.tail = nullptr;
     window.size = 0;
-    window.capacity = (std::size_t)window_size;
+    window.capacity = static_cast<std::size_t>(window_size);
 
-    long long lines = 0, comments = 0, events = 0;
+    long long lines = 0;
+    long long comments = 0;
+    long long events = 0;
     std::map<std::string, long long> event_types_count;
     std::string line;
 
@@ -76,17 +80,27 @@ int main(int argc, char** argv) {
         ++event_types_count[ev.type];
 
         if (detected && !is_quiet) {
-            std::vector<const nano_edr::Event*> recent;
-            for (nano_edr::EventNode* n = window.head; n; n = n->next)
-                recent.push_back(&n->event);
 
-            int total = (int)recent.size();
-            int start = total > 2 ? total - 2 : 0;
-            for (int k = start; k < total; ++k) {
-                const nano_edr::Event* e = recent[k];
-                std::print("[CTX] {}: ts={} type={} pid={}\n",
-                           k - total, e->ts, e->type, e->pid);
+            size_t total = window.size;
+
+            if (total == 0) {
+                continue;
             }
+            if (total == 1) {
+                std::print("[CTX] -1: ts={} type={} pid={}\n", window.tail->event.ts, window.tail->event.type, window.tail->event.pid);
+            }
+            else {
+                nano_edr::EventNode* cur = window.head;
+                for (size_t k = 0; k < total; k++) {
+                    if (k >= total - 2) {
+                        std::print("[CTX] -{}: ts={} type={} pid={}\n", total - k, cur->event.ts, cur->event.type, cur->event.pid);
+                    }
+                    cur = cur->next;
+                    
+                }
+            }
+
+
         }
 
         ListPushBack(&window, &ev);
