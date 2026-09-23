@@ -11,7 +11,7 @@ bool IsBlankOrComment(const std::string* line) {
             (*line)[i] == '\r' || (*line)[i] == '\n')) {
         ++i;
     }
-    if (i >= line->size()) return true;                 // пусто / только пробелы
+    if (i >= line->size()) return true;
     return (*line)[i] == '#' || (*line)[i] == ';';
 }
 
@@ -49,10 +49,15 @@ bool ParseEventLine(const std::string* line, Event* out) {
             value = s.substr(v_start, i - v_start);
         }
 
-        // ---- ключевое: одна цепочка if / else if / else ----
-        if      (key == "ts"   && !has_ts)   { out->ts   = value; has_ts   = true; }
-        else if (key == "type" && !has_type) { out->type = value; has_type = true; }
-        else if (key == "pid"  && !has_pid)  { out->pid  = value; has_pid  = true; }
+        if (key == "ts"   && !has_ts) { 
+            out->ts   = value; has_ts   = true; 
+        }
+        else if (key == "type" && !has_type) { 
+            out->type = value; has_type = true; 
+        }
+        else if (key == "pid"  && !has_pid)  {
+             out->pid  = value; has_pid  = true; 
+        }
         else {
             Field f;
             f.key   = key;
@@ -64,4 +69,4 @@ bool ParseEventLine(const std::string* line, Event* out) {
     return has_ts && has_type;
 }
 
-} // namespace nano_edr
+}

@@ -11,15 +11,14 @@
 #include "../kit/include/l1.2/event_list.h"
 
 int main(int argc, char** argv) {
+    bool is_quiet  = false;
+    long long window_size = 64;
     const std::vector<std::string> attributes = {
         "wscript.exe",
         ".locked",
         "certutil.exe",
         "\\Startup\\",
     };
-
-    bool is_quiet  = false;
-    long long window_size = 64;
 
     if (argc < 2) {
         std::print(stderr, "использование: nano-edr <журнал.log>\n");
@@ -45,9 +44,9 @@ int main(int argc, char** argv) {
     }
 
     nano_edr::EventList window{};
-    window.head     = nullptr;
-    window.tail     = nullptr;
-    window.size     = 0;
+    window.head = nullptr;
+    window.tail = nullptr;
+    window.size = 0;
     window.capacity = (std::size_t)window_size;
 
     long long lines = 0, comments = 0, events = 0;

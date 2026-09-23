@@ -33,7 +33,9 @@ namespace nano_edr {
 
     }
 
-
+    EventList::~EventList() {
+        ListClear(this);
+    }
 
     void ListClear(EventList* list) {
         while (list->head) {
@@ -41,7 +43,5 @@ namespace nano_edr {
         }
     }
 
-    EventList::~EventList() {
-        ListClear(this);
-    }
+    
 }
