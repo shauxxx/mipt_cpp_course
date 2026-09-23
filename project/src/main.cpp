@@ -74,6 +74,8 @@ int main(int argc, char** argv) {
         }
     }
 
+    // мои крутые изменения
+
     if(flag) {
         for (auto [key, val]:counter) {
             std::print("{}: {} \n", key, val);
