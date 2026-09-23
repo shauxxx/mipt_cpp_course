@@ -2,9 +2,9 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <print>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "../kit/include/l1.2/parse.h"
@@ -44,7 +44,6 @@ int main(int argc, char** argv) {
         }
     }
 
-
     nano_edr::EventList window{};
     window.head     = nullptr;
     window.tail     = nullptr;
@@ -52,17 +51,15 @@ int main(int argc, char** argv) {
     window.capacity = (std::size_t)window_size;
 
     long long lines = 0, comments = 0, events = 0;
-    std::unordered_map<std::string, long long> event_types_count;
+    std::map<std::string, long long> event_types_count;
     std::string line;
 
     while (std::getline(log, line)) {
         ++lines;
-        std::print("{}\n", lines);
         if (nano_edr::IsBlankOrComment(&line)) {
             if (!line.empty()) ++comments;
             continue;
         }
-
 
         bool detected = false;
         for (auto& attribute : attributes) {
@@ -78,7 +75,6 @@ int main(int argc, char** argv) {
 
         ++events;
         ++event_types_count[ev.type];
-
 
         if (detected && !is_quiet) {
             std::vector<const nano_edr::Event*> recent;
