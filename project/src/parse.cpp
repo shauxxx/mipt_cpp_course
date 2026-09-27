@@ -7,7 +7,7 @@ bool IsBlankOrComment(const std::string* line) {
 
     std::size_t i = 0;
     while (i < line->size() &&
-           ((*line)[i] == ' '  || (*line)[i] == '\t')) {
+           ((*line)[i] == ' ' || (*line)[i] == '\t')) {
         ++i;
     }
     if (i >= line->size()) return true;
@@ -16,7 +16,6 @@ bool IsBlankOrComment(const std::string* line) {
 
 bool ParseEventLine(const std::string* line, Event* out) {
     if (!line || !out) return false;
-    if (IsBlankOrComment(line)) return false;
 
     const std::string& s = *line;
     std::size_t i = 0;
@@ -48,18 +47,18 @@ bool ParseEventLine(const std::string* line, Event* out) {
             value = s.substr(v_start, i - v_start);
         }
 
-        if (key == "ts"   && !has_ts) { 
-            out->ts   = value; has_ts   = true; 
-        }
-        else if (key == "type" && !has_type) { 
-            out->type = value; has_type = true; 
-        }
-        else if (key == "pid"  && !has_pid)  {
-             out->pid  = value; has_pid  = true; 
-        }
-        else {
+        if (key == "ts" && !has_ts) {
+            out->ts = value;
+            has_ts = true;
+        } else if (key == "type" && !has_type) {
+            out->type = value;
+            has_type = true;
+        } else if (key == "pid" && !has_pid) {
+            out->pid = value;
+            has_pid = true;
+        } else {
             Field f;
-            f.key   = key;
+            f.key = key;
             f.value = value;
             out->fields.push_back(f);
         }
@@ -68,4 +67,4 @@ bool ParseEventLine(const std::string* line, Event* out) {
     return has_ts && has_type;
 }
 
-}
+}  // namespace nano_edr
