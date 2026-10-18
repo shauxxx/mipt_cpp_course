@@ -7,14 +7,20 @@
 
 #include "agent_rules.h"
 #include "rules.h"
+#include "event_list.h"
 
 namespace nano_edr {
+Agent::Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), rules_(BuildAgentRules()) {}
 
 void Agent::HandleEvent(const Event& event) {
-    const std::size_t detected = CheckRules(event, AgentRules(), AgentRuleCount());
+    for (std::size_t i = 0; i < rules_.size(); ++i) {
+        if (rules_[i].Check(event)) {
+            if (!quiet_) {
+                PrintContext();
+            }
+            std::print("[DETECT] {}  {}  ts={} pid={}\n", SeverityName(rules_[i].severity()), rules_[i].id(), event.raw_ts(), event.pid());
+        }
 
-    if (detected > 0 && !quiet_) {
-        PrintContext();
     }
 
     window_.PushBack(event);
@@ -56,6 +62,10 @@ void Agent::PrintSummary() const {
     for (const auto& [type, count] : by_type_) {
         std::print("событий типа {} всего : {}\n", type, count);
     }
+    for (const MatchRule& rule : rules_) {
+        std::print("  {}  {}\n", rule.id(), rule.hits());
+    }
+
 }
 
 void Agent::PrintContext() const {

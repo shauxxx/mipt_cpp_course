@@ -8,13 +8,14 @@
 #include "event.h"
 #include "event_list.h"
 #include "os.h"
+#include "agent_rules.h"
 
 namespace nano_edr {
 
 
 class Agent {
  public:
-    Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet) {};
+    Agent(std::size_t window_size, bool quiet);
 
     static void Trampoline(const os_event* ev, void* ctx) noexcept;
 
@@ -29,6 +30,7 @@ class Agent {
     bool quiet_;
     std::size_t total_ = 0;
     std::map<std::string, std::size_t> by_type_;
+    std::vector<MatchRule> rules_;
 };
 
 }  // namespace nano_edr
