@@ -1,44 +1,46 @@
-#include "event_list.h"
+#include "../kit/include/l1.2/event_list.h"
 
 namespace nano_edr {
-    
-void EventList::PushBack(const Event& event) {
-    EventNode* creating = new EventNode(event);
-    
-    if (capacity_ > 0 && size_ >= capacity_) {
-        PopFront();
+
+void ListPushBack(EventList* list, const Event* event) {
+    if (list->capacity > 0 && list->size >= list->capacity) {
+        ListPopFront(list);
     }
 
-    if (tail_) {
-        tail_->next = creating;
-    } else {
-        head_ = creating; 
-    }
-    tail_ = creating;
-    size_++;
+    EventNode* creating = new EventNode;
+    creating->event = *event;
+    creating->next = nullptr;
+
+    if (list->tail) {
+        list->tail->next = creating;
+
+    } else
+        list->head = creating;
+    list->tail = creating;
+    list->size++;
 }
 
-void EventList::PopFront() {
-    if (!size_) {
+void ListPopFront(EventList* list) {
+    if (!list->size) {
         return;
     }
-    EventNode* deleted = head_;
-    head_ = deleted->next;
+    EventNode* deleted = list->head;
+    list->head = deleted->next;
     delete deleted;
-    size_--;
-    if (!size_) {
-        tail_ = nullptr;
+    list->size--;
+    if (!list->size) {
+        list->tail = nullptr;
     }
 }
 
 EventList::~EventList() {
-    Clear();
+    ListClear(this);
 }
 
-void EventList::Clear() {
-    while (head_) {
-        PopFront();
+void ListClear(EventList* list) {
+    while (list->head) {
+        ListPopFront(list);
     }
 }
 
-}
+}  // namespace nano_edr

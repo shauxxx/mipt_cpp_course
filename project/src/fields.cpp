@@ -1,39 +1,33 @@
-#include "fields.h"
+#include "../kit/include/l1.3/fields.h"
 
 #include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <system_error>
-#include <charconv>
+
+#include "charconv"
 
 namespace nano_edr {
 // Возвращает nullptr, если поля нет. Это один из двух ожидаемых исходов,
 // а не ошибка — вызывающий код сам решает, что делать.
 const std::string* FindField(const Event& event, const std::string& key) {
-    if (key == "ts") {
-        return &event.raw_ts();
-    } else if (key == "type") {
-        return &event.type();
-    } else if (key == "pid") {
-        return &event.pid();
-    } else {
-    for (const auto& pos_fields : event.fields()) {
+    for (const auto& pos_fields : event.fields) {
         if (pos_fields.key == key) {
             return &pos_fields.value;
         }
     }
     return nullptr;
-    }
 }
 
 // Бросает std::invalid_argument, если поля нет. Это нарушение контракта
 // формата журнала: для данного типа события поле обязательно.
 const std::string& GetRequiredField(const Event& event, const std::string& key) {
-    const std::string* loc = FindField(event, key);
-    if (loc == nullptr) {
-        throw std::invalid_argument("Required field not found: " + key);
+    for (const auto& pos_fields : event.fields) {
+        if (pos_fields.key == key) {
+            return pos_fields.value;
+        }
     }
-    return *loc;
+    throw std::invalid_argument("Required field not found: " + key);
 }
 
 // Возвращает false, если поля нет, строка не является числом,
@@ -71,13 +65,13 @@ uint64_t GetIntField(const Event& event, const std::string& key, uint64_t fallba
 // Возвращает false, если поля "type" нет или оно не равно ожидаемому.
 // Никогда не бросает исключений.
 bool IsProcessStart(const Event& event) {
-    return event.type() == "process_start";
+    return event.type == "process_start";
 }
 bool IsFileWrite(const Event& event) {
-    return event.type() == "file_write";
+    return event.type == "file_write";
 }
 bool IsNetConnect(const Event& event) {
-    return event.type() == "net_connect";
+    return event.type == "net_connect";
 }
 
 // Возвращает false, если поля "path" нет. Сравнение без учёта регистра.
