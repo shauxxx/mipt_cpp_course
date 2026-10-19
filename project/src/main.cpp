@@ -72,7 +72,7 @@ Config ParseArgs(int argc, char** argv) {
     return config;
 }
 
-}  // namespace
+}
 
 int main(int argc, char** argv) {
     Config config;
@@ -86,8 +86,6 @@ int main(int argc, char** argv) {
     try {
         nano_edr::Agent agent(config.window_size, config.is_quiet);
         {
-            // Источник живёт в своём блоке: os_free и закрытие файла
-            // происходят до сводки, а агент переживает хендл.
             if (config.use_file) {
                 nano_edr::FileSource source(config.path);
                 source.Run(&agent);
