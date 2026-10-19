@@ -38,6 +38,7 @@ void FileSource::Run(Agent* agent) {
         } catch (const std::exception& e) {
             std::print(stderr, "строка {} пропущена: {}\n", line_number,
                        e.what());
+            agent->skip();
         }
     }
 }
