@@ -1,17 +1,30 @@
 #include "agent_rules.h"
+
+#include <string>
+
 #include "fields.h"
 #include "rules.h"
 
-#include <string>
+//============================================================================
+// Пять правил детектирования и таблица правил.
+//
+// Все функции-проверки (ScriptHostFromTemp и т.д.) возвращают bool.
+// Они не ловят исключения — если GetRequiredField бросит
+// std::invalid_argument (например, process_start без image), исключение
+// пролетит вверх по стеку до catch в main. Это правильное поведение:
+// отсутствие обязательного поля — нарушение контракта формата журнала.
+//
+// AgentRules и AgentRuleCount не бросают исключений.
+// ===========================================================================
 
 namespace nano_edr {
 
 namespace {
 const std::string* CheckTypeFile(const Event& event) {
     const std::string* ans = nullptr;
-    const std::string& check_type = event.type();
+    const std::string& check_type = event.type;
     if (check_type == "file_create" || check_type == "file_write" || check_type == "file_move") {
-        if (check_type == "file_move") {
+        if (event.type == "file_move") {
             ans = FindField(event, "to");
         } else {
             ans = FindField(event, "path");
@@ -22,7 +35,7 @@ const std::string* CheckTypeFile(const Event& event) {
 }
 
 bool CheckTypeProcess(const Event& event) {
-    const std::string& check_type = event.type();
+    const std::string& check_type = event.type;
     if (check_type == "process_start") {
         return true;
     }
