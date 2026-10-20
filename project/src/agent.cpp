@@ -12,22 +12,21 @@
 namespace nano_edr {
 
 namespace {
-
-    void Transition(const os_event* ev, void* ctx) {
-        EventParts parts;
-        parts.ts = std::to_string(ev->ts);
-        parts.type = ev->type != nullptr ? ev->type : "";
-        parts.pid = ev->pid == 0 ? "" : std::to_string(ev->pid);
-        for (std::size_t i = 0; i < ev->field_count; ++i) {
-            const os_kv& kv = ev->fields[i];
-            parts.fields.push_back(Field{kv.key != nullptr ? kv.key : "",
-                                         kv.value != nullptr ? kv.value : ""});
-            }
-        const Event event(parts);
-        static_cast<Agent*>(ctx)->HandleEvent(event); 
+Event ConvertOsEventToEvent(const os_event* ev) {
+    EventParts parts;
+    parts.ts = std::to_string(ev->ts);
+    parts.type = ev->type != nullptr ? ev->type : "";
+    parts.pid = ev->pid == 0 ? "" : std::to_string(ev->pid);
+    for (std::size_t i = 0; i < ev->field_count; ++i) {
+        const os_kv& kv = ev->fields[i];
+        parts.fields.push_back(Field{kv.key != nullptr ? kv.key : "", kv.value != nullptr ? kv.value : ""});
         }
+    const Event event(parts);
+    return event;
+    }
 
 }
+
 Agent::Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), rules_(BuildAgentRules()) {}
 
 void Agent::HandleEvent(const Event& event) {
@@ -44,11 +43,11 @@ void Agent::HandleEvent(const Event& event) {
 
     }
 
-    window_.PushBack(event);
     ++total_;
     ++by_type_[event.type()];
     const EventNode* old_tail = window_.back();
     prev_ = (window_.size() >= 2) ? old_tail : nullptr;
+    window_.PushBack(event);
 }
 
 void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
@@ -57,15 +56,16 @@ void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
     }
     auto* self = static_cast<Agent*>(ctx);
     try {
-        Transition(ev, ctx);   
+        const Event event = ConvertOsEventToEvent(ev);
+        static_cast<Agent*>(ctx)->HandleEvent(event);    
     } catch (const std::exception& e) {
         std::fprintf(stderr, "событие ts=%llu пропущено: %s\n",
                      static_cast<unsigned long long>(ev->ts), e.what());
-        ++(self->skipped_);
+        self->skip();
     } catch (...) {
         std::fprintf(stderr, "событие ts=%llu пропущено: неизвестная ошибка\n",
                      static_cast<unsigned long long>(ev->ts));
-        ++(self->skipped_);
+        self->skip();
     }
     }
 
@@ -76,9 +76,9 @@ void Agent::PrintSummary() const {
     std::print("событий всего : {}\n", total_);
     for (const auto& [type, count] : by_type_) {
         std::print("событий типа {} всего : {}\n", type, count);
+    }
     std::print("детектов: {}\n", detections_);
     std::print("пропущено: {}\n", skipped_);
-    }
     for (const MatchRule& rule : rules_) {
         std::print("  {}  {}\n", rule.id(), rule.hits());
     }

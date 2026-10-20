@@ -30,6 +30,8 @@ void FileSource::Run(Agent* agent) {
                            line_number);
             }
             continue;
+        } else {
+            agent->skip();
         }
 
         try {
