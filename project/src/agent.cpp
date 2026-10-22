@@ -46,7 +46,7 @@ void Agent::HandleEvent(const Event& event) {
     ++total_;
     ++by_type_[event.type()];
     const EventNode* old_tail = window_.back();
-    prev_ = (window_.size() >= 2) ? old_tail : nullptr;
+    prev_ = (window_.capacity() >= 2) ? old_tail : nullptr;
     window_.PushBack(event);
 }
 
@@ -57,7 +57,7 @@ void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
     auto* self = static_cast<Agent*>(ctx);
     try {
         const Event event = ConvertOsEventToEvent(ev);
-        static_cast<Agent*>(ctx)->HandleEvent(event);    
+        self->HandleEvent(event);    
     } catch (const std::exception& e) {
         std::fprintf(stderr, "событие ts=%llu пропущено: %s\n",
                      static_cast<unsigned long long>(ev->ts), e.what());

@@ -28,11 +28,10 @@ void FileSource::Run(Agent* agent) {
             if (!IsBlankOrComment(line)) {
                 std::print(stderr, "строка {} пропущена: не разобрана\n",
                            line_number);
+                agent->skip();
             }
             continue;
-        } else {
-            agent->skip();
-        }
+        } 
 
         try {
             const Event event(parts);
