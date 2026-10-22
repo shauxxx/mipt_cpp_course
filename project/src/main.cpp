@@ -1,128 +1,101 @@
 #include <charconv>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
-#include <map>
+#include <exception>
 #include <print>
+#include <stdexcept>
 #include <string>
-#include <vector>
+#include <system_error>
 
-#include "agent_rules.h"
-#include "event_list.h"
-#include "fields.h"
-#include "parse.h"
-#include "rules.h"
+#include "agent.h"
+#include "file_source.h"
+#include "os_source.h"
+
+namespace {
 
 struct Config {
+    std::string path;
+    bool use_file = false;
     bool is_quiet = false;
-    long long window_size = 64;
-    std::ifstream log;
+    std::size_t window_size = 64;
 };
 
-void ParseArgs(int argc, char** argv, bool& is_quiet, long long& window_size, std::ifstream& log) {
-    if (argc < 2) {
-        throw std::invalid_argument("использование: nano-edr <журнал.log>\n");
-    }
+Config ParseArgs(int argc, char** argv) {
+    Config config;
+    bool has_path = false;
 
-    log.open(argv[1]);
-    if (!log) {
-        throw std::invalid_argument(std::string("не удалось открыть журнал: ") + argv[1]);
-    }
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
 
-    for (int i = 2; i < argc; ++i) {
-        std::string a = argv[i];
-        if (a == "--quiet") {
-            is_quiet = true;
-        } else if (a == "--window-size" && i + 1 < argc) {
-            const char* s = argv[i + 1];
-            long long n = 0;
-            auto [p, ec] = std::from_chars(s, s + std::strlen(s), n);
-            if (ec == std::errc() && n >= 0) {
-                window_size = n;
-                ++i;
+        if (arg == "--quiet") {
+            config.is_quiet = true;
+        } else if (arg == "--window-size") {
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("после --window-size нет значения");
             }
-        }
-    }
-}
-
-void OutPutContext(const nano_edr::EventList& window) {
-    size_t total = window.size;
-    if (total == 0) {
-        return;
-    }
-    if (total == 1) {
-        std::print("[CTX] -1: ts={} type={} pid={}\n", window.tail->event.ts, window.tail->event.type, window.tail->event.pid);
-    } else {
-        nano_edr::EventNode* cur = window.head;
-        for (size_t k = 0; k < total; k++) {
-            if (k >= total - 2) {
-                std::print("[CTX] -{}: ts={} type={} pid={}\n", total - k, cur->event.ts, cur->event.type, cur->event.pid);
+            const char* text = argv[++i];
+            std::size_t value = 0;
+            const auto [ptr, ec] =
+                std::from_chars(text, text + std::strlen(text), value);
+            if (ec != std::errc() || *ptr != '\0') {
+                throw std::invalid_argument(
+                    std::string("неверный размер окна: ") + text);
             }
-            cur = cur->next;
+            config.window_size = value;
+        } else if (arg == "--file") {
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("после --file нет значения");
+            }
+            if (has_path) {
+                throw std::invalid_argument("путь к журналу задан дважды");
+            }
+            config.path = argv[++i];
+            config.use_file = true;
+            has_path = true;
+        } else if (arg.starts_with("--")) {
+            throw std::invalid_argument("неизвестная опция: " + arg);
+        } else {
+            if (has_path) {
+                throw std::invalid_argument("путь к журналу задан дважды");
+            }
+            config.path = arg;
+            has_path = true;
         }
     }
+
+    if (!has_path) {
+        throw std::invalid_argument(
+            "использование: nano-edr [--quiet] [--window-size N] "
+            "(<журнал> | --file <журнал>)");
+    }
+    return config;
 }
 
-void FinalPrint(long long lines, long long comments, const std::map<std::string, long long>& types) {
-    std::print("строк {}, из них комментариев {}\n", lines, comments);
-    std::print("событий всего : {}\n", lines - comments);
-    for (auto& [type, count] : types)
-        std::print("событий типа {} всего : {}\n", type, count);
-}
-
-void Execution(Config& config) {
-    nano_edr::EventList window;
-    window.capacity = config.window_size;
-
-    long long lines = 0;
-    long long comments = 0;
-
-    std::map<std::string, long long> event_types_count;
-    std::string line;
-
-    const nano_edr::Rule* rules = nano_edr::AgentRules();
-    const size_t rule_count = nano_edr::AgentRuleCount();
-
-    while (std::getline(config.log, line)) {
-        ++lines;
-
-        if (nano_edr::IsBlankOrComment(&line)) {
-            if (!line.empty()) ++comments;
-            continue;
-        }
-
-        nano_edr::Event event;
-        if (!nano_edr::ParseEventLine(&line, &event)) {
-            continue;
-        }
-        ++event_types_count[event.type];
-
-        size_t detected = nano_edr::CheckRules(event, rules, rule_count);
-
-        if (detected && !config.is_quiet) {
-            OutPutContext(window);
-        }
-
-        ListPushBack(&window, &event);
-    }
-
-    if (!config.is_quiet) {
-        FinalPrint(lines, comments, event_types_count);
-    }
 }
 
 int main(int argc, char** argv) {
-    Config cur_conf;
+    Config config;
     try {
-        ParseArgs(argc, argv, cur_conf.is_quiet, cur_conf.window_size, cur_conf.log);
-    } catch (std::exception& e) {
+        config = ParseArgs(argc, argv);
+    } catch (const std::exception& e) {
         std::print(stderr, "Error: {}\n", e.what());
         return 2;
     }
 
     try {
-        Execution(cur_conf);
-    } catch (std::exception& e) {
+        nano_edr::Agent agent(config.window_size, config.is_quiet);
+        {
+            if (config.use_file) {
+                nano_edr::FileSource source(config.path);
+                source.Run(&agent);
+            } else {
+                nano_edr::OsSource source(config.path);
+                source.Run(&agent);
+            }
+        }
+        agent.PrintSummary();
+    } catch (const std::exception& e) {
         std::print(stderr, "Error: {}\n", e.what());
         return 1;
     }
