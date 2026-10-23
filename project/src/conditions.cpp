@@ -4,7 +4,7 @@
 
 namespace nano_edr {
 
-bool FieldEquals::operator()(const Event& event) const {
+bool FieldEquals::Matches(const Event& event) const {
     const std::string* value = FindField(event, key_);
     if (value == nullptr) {
         return false;
@@ -12,7 +12,7 @@ bool FieldEquals::operator()(const Event& event) const {
     return EqualLowerCase(*value, value_);
 }
 
-bool FieldContains::operator()(const Event& event) const {
+bool FieldContains::Matches(const Event& event) const {
     const std::string* value = FindField(event, key_);
     if (value == nullptr) {
         return false;
@@ -20,7 +20,7 @@ bool FieldContains::operator()(const Event& event) const {
     return ContainsLowerCase(*value, needle_);
 }
 
-bool FieldEndsWith::operator()(const Event& event) const {
+bool FieldEndsWith::Matches(const Event& event) const {
     const std::string* value = FindField(event, key_);
     if (value == nullptr) {
         return false;
@@ -28,7 +28,7 @@ bool FieldEndsWith::operator()(const Event& event) const {
     return EndIsLowerCase(*value, suffix_);
 }
 
-bool FieldInList::operator()(const Event& event) const {
+bool FieldInList::Matches(const Event& event) const {
     const std::string* value = FindField(event, key_);
     if (value == nullptr) {
         return false;
@@ -41,38 +41,46 @@ bool FieldInList::operator()(const Event& event) const {
     return false;
 }
 
-Condition Condition::Equals(const std::string& key, const std::vector<std::string>& values) {
-    return Condition(Match::kEquals, key, values); 
-}
-Condition Condition::Contains(const std::string& key, const std::vector<std::string>& values) {
-    return Condition(Match::kContains, key, values);
-}
-Condition Condition::EndsWith(const std::string& key, const std::vector<std::string>& values) {
-    return Condition(Match::kEndsWith, key, values);
-}
-
-bool Condition::operator()(const Event &event) const {
-    const std::string* value = FindField(event, key_);
-    if (!value) {
-        return false;
-    }
-    for (const auto& val : values_) {
-        switch (match_) {
-            case Match::kEquals:
-                if (EqualLowerCase(*value, val)) return true;
-                break;
-            case Match::kContains:
-                if (ContainsLowerCase(*value, val)) return true;
-                break;
-            case Match::kEndsWith:
-                if (EndIsLowerCase(*value, val)) return true;
-                break;
+bool EventTypeIs::Matches(const Event& event) const {
+    const EventType& value = event.event_type();
+    for (const auto& type: types_) {
+        if (value == type) {
+            return true;
         }
     }
     return false;
 }
 
+void AllOf::Add(std::unique_ptr<ICondition> condition) {
+    parts_.push_back(std::move(condition));
+}
 
+void AnyOf::Add(std::unique_ptr<ICondition> condition) {
+    parts_.push_back(std::move(condition));
+}
 
+bool AllOf::Matches(const Event& event) const {
+    if (size() == 0) {
+        return true;
+    }
+    for (const auto& part : parts_) {
+        if (!part->Matches(event)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool AnyOf::Matches(const Event& event) const {
+    if (size() == 0) {
+        return false;
+    }
+    for (const auto& part : parts_) {
+        if (part->Matches(event)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 }
