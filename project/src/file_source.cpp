@@ -17,29 +17,30 @@ FileSource::FileSource(const std::string& path) : file_(path) {
     }
 }
 
-void FileSource::Run(Agent* agent) {
+void FileSource::Run(IEventHandler* handler) {
     std::string line;
     std::size_t line_number = 0;
     while (std::getline(file_, line)) {
         ++line_number;
-
         EventParts parts;
         if (!ParseEventParts(line, &parts)) {
-            if (!IsBlankOrComment(line)) {
+            if (IsBlankOrComment(line)) {
+                handler->OnSkipped();
+            } else {
                 std::print(stderr, "строка {} пропущена: не разобрана\n",
                            line_number);
-                agent->skip();
-            }
+                handler->OnBroken();
+                }
             continue;
         } 
 
         try {
             const Event event(parts);
-            agent->HandleEvent(event);
+            handler->HandleEvent(event);
         } catch (const std::exception& e) {
             std::print(stderr, "строка {} пропущена: {}\n", line_number,
                        e.what());
-            agent->skip();
+            handler->OnBroken();
         }
     }
 }

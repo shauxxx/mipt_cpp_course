@@ -8,66 +8,29 @@
 #include "agent_rules.h"
 #include "rules.h"
 #include "event_list.h"
+#include "rule.h"
 
 namespace nano_edr {
 
-namespace {
-Event ConvertOsEventToEvent(const os_event* ev) {
-    EventParts parts;
-    parts.ts = std::to_string(ev->ts);
-    parts.type = ev->type != nullptr ? ev->type : "";
-    parts.pid = ev->pid == 0 ? "" : std::to_string(ev->pid);
-    for (std::size_t i = 0; i < ev->field_count; ++i) {
-        const os_kv& kv = ev->fields[i];
-        parts.fields.push_back(Field{kv.key != nullptr ? kv.key : "", kv.value != nullptr ? kv.value : ""});
-        }
-    const Event event(parts);
-    return event;
-    }
-
-}
-
-Agent::Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), rules_(BuildAgentRules()) {}
+Agent::Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), engine_(BuildAgentRules()) {}
 
 void Agent::HandleEvent(const Event& event) {
-    bool isfind = false;
-    for (std::size_t i = 0; i < rules_.size(); ++i) {
-        if (rules_[i].Check(event)) {
-            if (!quiet_ && !isfind) {
-                PrintContext();
-                isfind = true;
-            }
-            std::print("[DETECT] {}  {}  ts={} pid={}\n", SeverityName(rules_[i].severity()), rules_[i].id(), event.raw_ts(), event.pid());
-            ++detections_;
-        }
-
+    std::vector<const IRule*> fired;
+    engine_.ProcessEvent(event, &fired);
+    if (!quiet_ && !fired.empty()) {
+        PrintContext();
+    }
+    for (std::size_t i = 0; i < fired.size(); ++i) {
+        std::print("[DETECT] {}  {}  ts={} pid={}\n", SeverityName(fired[i]->severity()), fired[i]->id(), event.raw_ts(), event.pid());
     }
 
+    detections_ += fired.size();
     ++total_;
     ++by_type_[event.type()];
     const EventNode* old_tail = window_.back();
     prev_ = (window_.capacity() >= 2) ? old_tail : nullptr;
     window_.PushBack(event);
 }
-
-void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
-    if (ev == nullptr || ctx == nullptr) {
-        return;
-    }
-    auto* self = static_cast<Agent*>(ctx);
-    try {
-        const Event event = ConvertOsEventToEvent(ev);
-        self->HandleEvent(event);    
-    } catch (const std::exception& e) {
-        std::fprintf(stderr, "событие ts=%llu пропущено: %s\n",
-                     static_cast<unsigned long long>(ev->ts), e.what());
-        self->skip();
-    } catch (...) {
-        std::fprintf(stderr, "событие ts=%llu пропущено: неизвестная ошибка\n",
-                     static_cast<unsigned long long>(ev->ts));
-        self->skip();
-    }
-    }
 
 void Agent::PrintSummary() const {
     if (quiet_) {
@@ -79,8 +42,8 @@ void Agent::PrintSummary() const {
     }
     std::print("детектов: {}\n", detections_);
     std::print("пропущено: {}\n", skipped_);
-    for (const MatchRule& rule : rules_) {
-        std::print("  {}  {}\n", rule.id(), rule.hits());
+    for (std::size_t i = 0; i < engine_.size(); ++i) {
+        std::print("  {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
 
 }
@@ -94,5 +57,13 @@ void Agent::PrintContext() const {
         std::print("[CTX] -1: ts={} type={} pid={}\n", last->event.raw_ts(), last->event.type(), last->event.pid());
     }
 } 
+
+void Agent::OnSkipped() {
+    ++skipped_;
+}
+
+void Agent::OnBroken() {
+    ++broken_;
+}
 
 }  // namespace nano_edr
