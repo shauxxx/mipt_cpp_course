@@ -6,13 +6,12 @@
 #include <string>
 
 #include "agent_rules.h"
-#include "rules.h"
-#include "event_list.h"
 #include "rule.h"
+#include "rules.h"
 
 namespace nano_edr {
 
-Agent::Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), engine_(BuildAgentRules()) {}
+Agent::Agent(bool quiet) : quiet_(quiet), engine_(BuildAgentRules()) {}
 
 void Agent::HandleEvent(const Event& event) {
     std::vector<const IRule*> fired;
@@ -27,9 +26,7 @@ void Agent::HandleEvent(const Event& event) {
     detections_ += fired.size();
     ++total_;
     ++by_type_[event.type()];
-    const EventNode* old_tail = window_.back();
-    prev_ = (window_.capacity() >= 2) ? old_tail : nullptr;
-    window_.PushBack(event);
+    window_.PushBack({event.ts(), event.type(), event.pid()});
 }
 
 void Agent::PrintSummary() const {
@@ -42,21 +39,21 @@ void Agent::PrintSummary() const {
     }
     std::print("детектов: {}\n", detections_);
     std::print("пропущено: {}\n", skipped_);
+    std::print("не разобрано: {}\n", broken_);
     for (std::size_t i = 0; i < engine_.size(); ++i) {
         std::print("  {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
-
+    std::print("[STAT] в окне {} из {} мест\n", window_.size(), window_.capacity());
 }
 
 void Agent::PrintContext() const {
-    if (prev_ != nullptr) {
-        std::print("[CTX] -2: ts={} type={} pid={}\n", prev_->event.raw_ts(), prev_->event.type(), prev_->event.pid());
+    if (window_.size() >= 2) {
+        std::print("[CTX] -2: {} {} pid={}\n", window_[window_.size() - 2].ts.ms, window_[window_.size() - 2].type, window_[window_.size() - 2].pid);
     }
-    const EventNode* last = window_.back();
-    if (last != nullptr) {
-        std::print("[CTX] -1: ts={} type={} pid={}\n", last->event.raw_ts(), last->event.type(), last->event.pid());
+    if (window_.size() >= 1) {
+        std::print("[CTX] -1: {} {} pid={}\n", window_.back().ts.ms, window_.back().type, window_.back().pid);
     }
-} 
+}
 
 void Agent::OnSkipped() {
     ++skipped_;

@@ -24,7 +24,7 @@ bool MatchRule::Check(const Event& event) {
 }
 
 SequenceRule::SequenceRule(const std::string& id, Severity severity,
-                        uint64_t window_ms)
+                           uint64_t window_ms)
     : RuleBase(id, severity), window_ms_(window_ms) {}
 
 void SequenceRule::SetFirst(std::unique_ptr<ICondition> condition) {
@@ -41,7 +41,7 @@ bool SequenceRule::Check(const Event& event) {
     }
     for (size_t i = 0; i < pending();) {
         if (pending_[i].ts_ms + window_ms_ < event.ts().ms) {
-            pending_.erase(pending_.begin());
+            pending_.erase(pending_.begin() + i);
         } else {
             ++i;
         }
@@ -66,4 +66,4 @@ bool SequenceRule::Check(const Event& event) {
     }
     return false;
 }
-} // namespace nano_edr
+}  // namespace nano_edr
