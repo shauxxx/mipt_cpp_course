@@ -27,8 +27,6 @@ class Agent : public IEventHandler {
 
     void PrintSummary() const;
 
-    void skip() { skipped_++; }
-
     void HandleEvent(const Event& event) override;
 
     void OnSkipped() override;

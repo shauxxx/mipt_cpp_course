@@ -31,8 +31,6 @@
 #include <array>
 #include <cstddef>
 
-#include "event.h"
-
 namespace nano_edr {
 
 template <typename T, std::size_t N>
@@ -55,8 +53,8 @@ class RingBuffer {
         bool operator!=(const Iterator& other) const { return ring_ != other.ring_ || index_ != other.index_; }
 
      private:
-        const RingBuffer* ring_;
-        std::size_t index_;
+        const RingBuffer* ring_ = nullptr;
+        std::size_t index_ = 0;
     };
 
     // Дописывает элемент. Если буфер полон, самый старый затирается — окно,
