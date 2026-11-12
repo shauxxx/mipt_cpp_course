@@ -19,4 +19,4 @@ std::size_t RuleEngine::ProcessEvent(const Event& event, std::vector<const IRule
     }
     return counter;
 }
-}
+}  // namespace nano_edr

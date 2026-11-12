@@ -1,10 +1,10 @@
 #include "event_list.h"
 
 namespace nano_edr {
-    
+
 void EventList::PushBack(const Event& event) {
     EventNode* creating = new EventNode(event);
-    
+
     if (capacity_ > 0 && size_ >= capacity_) {
         PopFront();
     }
@@ -12,7 +12,7 @@ void EventList::PushBack(const Event& event) {
     if (tail_) {
         tail_->next = creating;
     } else {
-        head_ = creating; 
+        head_ = creating;
     }
     tail_ = creating;
     size_++;
@@ -41,4 +41,4 @@ void EventList::Clear() {
     }
 }
 
-}
+}  // namespace nano_edr

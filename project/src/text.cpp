@@ -8,9 +8,9 @@ namespace {
 char ToLower(char c) {
     return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 }
-}
+}  // namespace
 
-bool EqualLowerCase(const std::string& value1, const std::string& value2) { 
+bool EqualLowerCase(const std::string& value1, const std::string& value2) {
     if (value1.size() != value2.size()) {
         return false;
     }
@@ -46,4 +46,4 @@ bool EndIsLowerCase(const std::string& value1, const std::string& value2) {
     return EqualLowerCase(value1.substr(value1.size() - value2.size(), value2.size()), value2);
 }
 
-}
+}  // namespace nano_edr

@@ -1,10 +1,10 @@
 #include "fields.h"
 
 #include <algorithm>
+#include <charconv>
 #include <stdexcept>
 #include <string>
 #include <system_error>
-#include <charconv>
 
 namespace nano_edr {
 // Возвращает nullptr, если поля нет. Это один из двух ожидаемых исходов,
@@ -17,12 +17,12 @@ const std::string* FindField(const Event& event, const std::string& key) {
     } else if (key == "pid") {
         return &event.pid();
     } else {
-    for (const auto& pos_fields : event.fields()) {
-        if (pos_fields.key == key) {
-            return &pos_fields.value;
+        for (const auto& pos_fields : event.fields()) {
+            if (pos_fields.key == key) {
+                return &pos_fields.value;
+            }
         }
-    }
-    return nullptr;
+        return nullptr;
     }
 }
 

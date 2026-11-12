@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "event.h"
 #include "conditions.h"
+#include "event.h"
 
 namespace nano_edr {
 
@@ -14,6 +14,6 @@ bool ContainsLowerCase(const std::string& value1, const std::string& value2);
 
 bool EndIsLowerCase(const std::string& value1, const std::string& value2);
 
-} 
+}  // namespace nano_edr
 
 #endif

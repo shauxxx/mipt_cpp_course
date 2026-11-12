@@ -30,9 +30,9 @@ void FileSource::Run(IEventHandler* handler) {
                 std::print(stderr, "строка {} пропущена: не разобрана\n",
                            line_number);
                 handler->OnBroken();
-                }
+            }
             continue;
-        } 
+        }
 
         try {
             const Event event(parts);

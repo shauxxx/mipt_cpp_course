@@ -18,5 +18,4 @@ const char* SeverityName(Severity severity) {
     }
 }
 
-
 }  // namespace nano_edr

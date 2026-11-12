@@ -1,7 +1,8 @@
 #include "event.h"
-#include <string>
+
 #include <chrono>
 #include <stdexcept>
+#include <string>
 
 namespace nano_edr {
 
@@ -17,7 +18,7 @@ Timestamp ParseTimestamp(const std::string& text) {
     }
     return result;
 }
-} //namespace
+}  //namespace
 
 EventType EventTypeFromString(const std::string& type) {
     if (type == "process_start") {
@@ -30,7 +31,7 @@ EventType EventTypeFromString(const std::string& type) {
         return EventType::kFileWrite;
     } else if (type == "file_delete") {
         return EventType::kFileDelete;
-    } else if(type == "file_move") {
+    } else if (type == "file_move") {
         return EventType::kFileMove;
     } else if (type == "net_connect") {
         return EventType::kNetConnect;
@@ -38,21 +39,18 @@ EventType EventTypeFromString(const std::string& type) {
     return EventType::kOther;
 }
 
-
 Event::Event(const EventParts& parts) : ts_(ParseTimestamp(parts.ts)),
-    raw_ts_(parts.ts),
-    type_(parts.type),
-    event_type_(EventTypeFromString(parts.type)),
-    pid_(parts.pid),
-    fields_(parts.fields) {
+                                        raw_ts_(parts.ts),
+                                        type_(parts.type),
+                                        event_type_(EventTypeFromString(parts.type)),
+                                        pid_(parts.pid),
+                                        fields_(parts.fields) {
     if (raw_ts_.empty()) {
         throw std::invalid_argument("ts не может быть пустым");
     }
     if (type_.empty()) {
         throw std::invalid_argument("type не может быть пустым");
     }
-
-
 }
 
 std::string ToString(const Event& event) {
@@ -70,4 +68,4 @@ std::ostream& operator<<(std::ostream& out, const Event& event) {
     return out << ToString(event);
 }
 
-}
+}  // namespace nano_edr

@@ -1,4 +1,5 @@
 #include "conditions.h"
+
 #include "fields.h"
 #include "text.h"
 
@@ -43,7 +44,7 @@ bool FieldInList::Matches(const Event& event) const {
 
 bool EventTypeIs::Matches(const Event& event) const {
     const EventType& value = event.event_type();
-    for (const auto& type: types_) {
+    for (const auto& type : types_) {
         if (value == type) {
             return true;
         }
@@ -83,4 +84,4 @@ bool AnyOf::Matches(const Event& event) const {
     return false;
 }
 
-}
+}  // namespace nano_edr

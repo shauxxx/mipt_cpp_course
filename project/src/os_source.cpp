@@ -1,10 +1,11 @@
 #include "os_source.h"
-#include "event.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+
+#include "event.h"
 
 namespace nano_edr {
 
@@ -19,11 +20,11 @@ Event ConvertOsEventToEvent(const os_event* ev) {
     for (std::size_t i = 0; i < ev->field_count; ++i) {
         const os_kv& kv = ev->fields[i];
         parts.fields.push_back(Field{kv.key != nullptr ? kv.key : "", kv.value != nullptr ? kv.value : ""});
-        }
+    }
     const Event event(parts);
     return event;
 }
-} // namespace
+}  // namespace
 
 OsSource::OsSource(const std::string& config_path) : handle_(config_path) {}
 
@@ -50,7 +51,7 @@ void OsSource::Trampoline(const os_event* ev, void* ctx) noexcept {
     auto* self = static_cast<IEventHandler*>(ctx);
     try {
         const Event event = ConvertOsEventToEvent(ev);
-        self->HandleEvent(event);    
+        self->HandleEvent(event);
     } catch (const std::exception& e) {
         std::fprintf(stderr, "событие ts=%llu пропущено: %s\n",
                      static_cast<unsigned long long>(ev->ts), e.what());

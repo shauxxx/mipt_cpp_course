@@ -1,4 +1,5 @@
 #include "os_handle.h"
+
 #include <stdexcept>
 #include <string>
 
@@ -7,10 +8,10 @@ namespace nano_edr {
 namespace {
 void ThrowIfFailed(const char* call, os_status status) {
     if (status != OS_OK) {
-        throw std::runtime_error(std::string(call) + " завершилась с ошибкой: " +os_status_str(status));
+        throw std::runtime_error(std::string(call) + " завершилась с ошибкой: " + os_status_str(status));
     }
 }
-}
+}  // namespace
 
 OsHandle::OsHandle(const std::string& config_path) {
     const os_status status = os_init(config_path.c_str(), &handle_);
@@ -40,4 +41,4 @@ void OsHandle::Stop() {
     static_cast<void>(os_stop(handle_));
 }
 
-}
+}  // namespace nano_edr
