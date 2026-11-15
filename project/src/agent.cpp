@@ -6,22 +6,19 @@
 #include <string>
 
 #include "agent_rules.h"
+#include "dedup_sink.h"
 #include "rule.h"
 #include "rules.h"
 
 namespace nano_edr {
 
-Agent::Agent(bool quiet) : quiet_(quiet), engine_(BuildAgentRules()) {}
+Agent::Agent(bool quiet, uint64_t dedup_period_ms) : quiet_(quiet), engine_(BuildAgentRules(&model_)), dedup_period_ms_(dedup_period_ms) { engine_.SetModel(&model_); }
 
 void Agent::HandleEvent(const Event& event) {
+    model_.Observe(event);
     std::vector<const IRule*> fired;
+    ctxprint_ = false;
     engine_.ProcessEvent(event, &fired);
-    if (!quiet_ && !fired.empty()) {
-        PrintContext();
-    }
-    for (std::size_t i = 0; i < fired.size(); ++i) {
-        std::print("[DETECT] {}  {}  ts={} pid={}\n", SeverityName(fired[i]->severity()), fired[i]->id(), event.raw_ts(), event.pid());
-    }
 
     detections_ += fired.size();
     ++total_;
@@ -44,6 +41,10 @@ void Agent::PrintSummary() const {
         std::print("  {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
     std::print("[STAT] в окне {} из {} мест\n", window_.size(), window_.capacity());
+    std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
+    if (!(suppressed_ == 0)) {
+        std::print("[STAT] подавлено дубликатов {} (срок {} мс)\n", suppressed_, dedup_period_ms_);
+    }
 }
 
 void Agent::PrintContext() const {
@@ -63,4 +64,17 @@ void Agent::OnBroken() {
     ++broken_;
 }
 
+void Agent::Subscribe(AlertSink sink) {
+    FanOutSink all;
+    all.Add([this](const Detection&) { PrintContextOnce(); });
+    all.Add(std::move(sink));
+    engine_.Subscribe(DedupSink(std::move(all), dedup_period_ms_, &suppressed_));
+}
+
+void Agent::PrintContextOnce() {
+    if (!ctxprint_ && !quiet_) {
+        PrintContext();
+        ctxprint_ = true;
+    }
+}
 }  // namespace nano_edr

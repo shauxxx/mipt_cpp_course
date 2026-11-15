@@ -23,7 +23,7 @@ class Agent : public IEventHandler {
  public:
     static constexpr std::size_t kWindowCapacity = 256;
 
-    explicit Agent(bool quiet);
+    Agent(bool quiet, uint64_t dedup_period_ms);
 
     void PrintSummary() const;
 
@@ -35,8 +35,12 @@ class Agent : public IEventHandler {
 
     void OnTick() override {};
 
+    void Subscribe(AlertSink sink);
+
  private:
     void PrintContext() const;
+
+    void PrintContextOnce();
 
     RingBuffer<WindowEntry, kWindowCapacity> window_;
 
@@ -48,7 +52,13 @@ class Agent : public IEventHandler {
     std::size_t detections_ = 0;
     std::map<std::string, std::size_t> by_type_;
 
+    EntityModel model_;
     RuleEngine engine_;
+
+    bool ctxprint_ = false;
+
+    uint64_t dedup_period_ms_{};
+    std::size_t suppressed_{};
 };
 
 }  // namespace nano_edr
