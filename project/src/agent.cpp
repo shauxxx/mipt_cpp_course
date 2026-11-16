@@ -42,7 +42,7 @@ void Agent::PrintSummary() const {
     }
     std::print("[STAT] в окне {} из {} мест\n", window_.size(), window_.capacity());
     std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
-    if (!(suppressed_ == 0)) {
+    if (suppressed_ != 0) {
         std::print("[STAT] подавлено дубликатов {} (срок {} мс)\n", suppressed_, dedup_period_ms_);
     }
 }

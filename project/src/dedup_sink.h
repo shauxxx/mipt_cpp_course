@@ -33,14 +33,14 @@ class DedupSink {
 
  private:
     struct Record {
-        std::string rule;
-        std::string pid;
-        uint64_t first_time;
+        std::string rule{};
+        std::string pid{};
+        uint64_t first_time{};
     };
-    AlertSink inner_;
-    uint64_t period_ms_;
-    std::size_t* suppressed_;
-    std::vector<Record> records_;
+    AlertSink inner_{};
+    uint64_t period_ms_{};
+    std::size_t* suppressed_ = nullptr;
+    std::vector<Record> records_{};
 };
 
 }  // namespace nano_edr
