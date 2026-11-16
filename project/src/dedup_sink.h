@@ -37,10 +37,10 @@ class DedupSink {
         std::string pid{};
         uint64_t first_time{};
     };
-    AlertSink inner_{};
+    AlertSink inner_;
     uint64_t period_ms_{};
     std::size_t* suppressed_ = nullptr;
-    std::vector<Record> records_{};
+    std::vector<Record> records_;
 };
 
 }  // namespace nano_edr
