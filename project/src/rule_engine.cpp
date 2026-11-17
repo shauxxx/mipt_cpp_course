@@ -12,6 +12,10 @@ std::size_t RuleEngine::ProcessEvent(const Event& event, std::vector<const IRule
     for (const auto& rule : rules_) {
         if (rule->Check(event)) {
             ++counter;
+            Detection detection = MakeDetection(*rule, event);
+            for (const AlertSink& sink : sinks_) {
+                sink(detection);
+            }
             if (is_fired) {
                 fired->push_back(rule.get());
             }
@@ -19,4 +23,22 @@ std::size_t RuleEngine::ProcessEvent(const Event& event, std::vector<const IRule
     }
     return counter;
 }
+
+void RuleEngine::Subscribe(AlertSink sink) {
+    sinks_.push_back(std::move(sink));
+}
+
+Detection RuleEngine::MakeDetection(const IRule& rule, const Event& event) const {
+    Detection detection;
+    detection.rule = rule.id();
+    detection.severity = rule.severity();
+    detection.ts = event.ts();
+    detection.pid = event.pid();
+    if (model_ != nullptr) {
+        detection.chain = model_->DescribeChain(event.pid());
+    }
+    detection.actions = rule.actions();
+    return detection;
+}
+
 }  // namespace nano_edr

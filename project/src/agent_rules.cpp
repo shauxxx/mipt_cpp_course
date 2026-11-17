@@ -4,6 +4,7 @@
 
 #include "combinators.h"
 #include "conditions.h"
+#include "entity_model.h"
 #include "fields.h"
 #include "make_rule.h"
 #include "rule.h"
@@ -156,9 +157,56 @@ std::unique_ptr<ThresholdRule<128>> MakeMassWrite() {
     return mass_write;
 }
 
+std::unique_ptr<SequenceRule> MakeShellSpawnsScriptHost(const EntityModel* model) {
+    auto shell = MakeRule<SequenceRule>("shell_spawns_script_host",
+                                        Severity::kHigh, 30000);
+
+    auto first = std::make_unique<AllOf>();
+    first->Add(std::make_unique<EventTypeIs>(std::vector<EventType>{EventType::kProcessStart}));
+
+    auto first_image = std::make_unique<AnyOf>();
+    first_image->Add(std::make_unique<FieldEndsWith>("image", "cmd.exe"));
+    first_image->Add(std::make_unique<FieldEndsWith>("image", "powershell.exe"));
+    first_image->Add(std::make_unique<FieldEndsWith>("image", "pwsh.exe"));
+
+    first->Add(std::move(first_image));
+    shell->SetFirst(std::move(first));
+
+    auto second = std::make_unique<AllOf>();
+    second->Add(std::make_unique<EventTypeIs>(std::vector<EventType>{EventType::kProcessStart}));
+
+    auto second_image = std::make_unique<AnyOf>();
+    second_image->Add(std::make_unique<FieldEndsWith>("image", "wscript.exe"));
+    second_image->Add(std::make_unique<FieldEndsWith>("image", "cscript.exe"));
+
+    second->Add(std::move(second_image));
+    shell->SetSecond(std::move(second));
+    shell->set_child_of_prev(true);
+    shell->SetModel(model);
+
+    shell->AddAction("kill_process");
+    return shell;
+}
+
+std::unique_ptr<LambdaRule> MakeSpawnedFromDroppedFile(const EntityModel* model) {
+    auto dropped = MakeRule<LambdaRule>(
+        "spawned_from_dropped_file",
+        Severity::kHigh,
+        [model](const Event& event) {
+            if (event.event_type() != EventType::kProcessStart) {
+                return false;
+            }
+            const FileRecord* source = model->FindSpawnSource(event.pid());
+            return source && !source->writer_pid.empty() && source->writer_pid != event.pid();
+        });
+    dropped->AddAction("kill_process");
+    dropped->AddAction("quarantine_file");
+    return dropped;
+}
+
 }  // namespace
 
-RuleEngine BuildAgentRules() {
+RuleEngine BuildAgentRules(const EntityModel* model) {
     RuleEngine engine;
     engine.AddRule(MakeScriptHostFromTemp());
     engine.AddRule(MakeLolbinDownload());
@@ -167,6 +215,8 @@ RuleEngine BuildAgentRules() {
     engine.AddRule(MakeRansomExtension());
     engine.AddRule(MakeScriptHostFromBeacon());
     engine.AddRule(MakeMassWrite());
+    engine.AddRule(MakeShellSpawnsScriptHost(model));
+    engine.AddRule(MakeSpawnedFromDroppedFile(model));
     return engine;
 }
 

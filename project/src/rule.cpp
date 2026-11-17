@@ -47,17 +47,11 @@ bool SequenceRule::Check(const Event& event) {
         }
     }
     if ((*second_).Matches(event)) {
-        if (!same_pid_ && pending()) {
-            pending_.erase(pending_.begin());
-            CountHit();
-            return true;
-        } else {
-            for (size_t i = 0; i < pending(); ++i) {
-                if (pending_[i].pid == event.pid()) {
-                    pending_.erase(pending_.begin() + i);
-                    CountHit();
-                    return true;
-                }
+        for (size_t i = 0; i < pending(); ++i) {
+            if (Linked(pending_[i], event)) {
+                pending_.erase(pending_.begin() + i);
+                CountHit();
+                return true;
             }
         }
     }
@@ -65,5 +59,35 @@ bool SequenceRule::Check(const Event& event) {
         pending_.push_back(Pending(event.ts().ms, event.pid()));
     }
     return false;
+}
+
+LambdaRule::LambdaRule(const std::string& id, Severity severity, Predicate predicate)
+    : RuleBase(id, severity), predicate_(std::move(predicate)) {}
+
+bool LambdaRule::Check(const Event& event) {
+    if (!predicate_) {
+        return false;
+    }
+    if (predicate_(event)) {
+        CountHit();
+        return true;
+    }
+    return false;
+}
+
+bool SequenceRule::Linked(const Pending& first, const Event& second) const {
+    if (child_of_prev_) {
+        if (!model_) {
+            return false;
+        }
+        const ProcessRecord* process = model_->FindProcess(second.pid());
+        if (!process) {
+            return false;
+        }
+        return process->ppid == first.pid;
+    } else if (same_pid_) {
+        return first.pid == second.pid();
+    }
+    return true;
 }
 }  // namespace nano_edr
