@@ -14,6 +14,8 @@ bool ContainsLowerCase(const std::string& value1, const std::string& value2);
 
 bool EndIsLowerCase(const std::string& value1, const std::string& value2);
 
+bool StartIsLowerCase(const std::string& value2, const std::string& value1);
+
 }  // namespace nano_edr
 
 #endif

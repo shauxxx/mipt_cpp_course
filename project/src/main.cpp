@@ -12,6 +12,7 @@
 #include "field_traits.h"
 #include "file_source.h"
 #include "os_source.h"
+#include "copy_stats.h"
 
 namespace {
 
@@ -20,6 +21,8 @@ struct Config {
     std::string out;
     bool use_file = false;
     bool is_quiet = false;
+    bool is_copies = false;
+    bool is_dry_run = false;
 };
 
 Config ParseArgs(int argc, char** argv) {
@@ -46,6 +49,10 @@ Config ParseArgs(int argc, char** argv) {
                 throw std::invalid_argument("после --out нет значения");
             }
             config.out = argv[++i];
+        } else if (arg == "--copies") {
+            config.is_copies = true;
+        } else if (arg == "--dry-run") {
+            config.is_dry_run = true;
         } else if (arg.starts_with("--")) {
             throw std::invalid_argument("неизвестная опция: " + arg);
         } else {
@@ -59,7 +66,7 @@ Config ParseArgs(int argc, char** argv) {
 
     if (!has_path) {
         throw std::invalid_argument(
-            "использование: nano-edr [--quiet] [--out <файл>] "
+            "использование: nano-edr [--quiet] [--out <файл>] [--copies] [--dry-run] "
             "(<журнал> | --file <журнал>)");
     }
     return config;
@@ -100,11 +107,20 @@ int main(int argc, char** argv) {
             targets.Add(nano_edr::FileSink(config.out));
         }
         agent.Subscribe(std::move(targets));
+        agent.EnableResponse(source->os(), config.is_dry_run, edr.Config("quarantine_dir", "C:\\quarantine"));
         source->Run(&agent);
         if (edr.Flush() != EDR_OK) {
             std::print(stderr, "[WARN] детекты не отправлены\n");
         }
         agent.PrintSummary();
+        if (config.is_copies) {
+            std::print("[COPY] строк события скопировано {}, перемещено {}\n", 
+                nano_edr::copy_stats().event_strings_copied, nano_edr::copy_stats().event_strings_moved);
+            std::print("[COPY] записей WindowEntry скопировано {}, перемещено {}\n",
+                nano_edr::copy_stats().window_copied, nano_edr::copy_stats().window_moved);
+            std::print("[COPY] событий скопировано в детекты {}\n", nano_edr::copy_stats().evidence_copied);
+            std::print("[COPY] копий всего {}\n", nano_edr::copy_stats().total());
+        }
     } catch (const std::exception& e) {
         std::print(stderr, "Error: {}\n", e.what());
         return 1;

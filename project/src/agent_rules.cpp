@@ -33,6 +33,8 @@ std::unique_ptr<MatchRule> MakeScriptHostFromTemp() {
     rule->AddCondition(std::move(cmd));
 
     rule->AddAction("kill_process");
+    rule->AddAction("quarantine_source");
+    rule->AddAction("delete_dropped");
 
     return rule;
 }
@@ -90,7 +92,7 @@ std::unique_ptr<MatchRule> MakeAutostartWrite() {
     paths->Add(std::make_unique<FieldContains>("to", "/start menu/programs/startup/"));
     rule->AddCondition(std::move(paths));
 
-    rule->AddAction("quarantine_file");
+    rule->AddAction("delete_evidence");
 
     return rule;
 }
@@ -104,7 +106,8 @@ std::unique_ptr<MatchRule> MakeRansomExtension() {
     paths->Add(std::make_unique<FieldEndsWith>("to", ".locked"));
     rule->AddCondition(std::move(paths));
 
-    rule->AddAction("quarantine_file");
+    rule->AddAction("kill_process");
+    rule->AddAction("quarantine_image");
 
     return rule;
 }
@@ -132,6 +135,7 @@ std::unique_ptr<SequenceRule> MakeScriptHostFromBeacon() {
 
     beacon->SetFirst(std::move(first));
     beacon->SetSecond(std::make_unique<EventTypeIs>(std::vector<EventType>{EventType::kNetConnect}));
+
     beacon->AddAction("kill_process");
 
     return beacon;
@@ -153,7 +157,7 @@ std::unique_ptr<ThresholdRule<128>> MakeMassWrite() {
                     FieldContains("to", "\\Desktop\\")))));
 
     mass_write->AddAction("kill_process");
-    mass_write->AddAction("quarantine_file");
+    mass_write->AddAction("quarantine_image");
     return mass_write;
 }
 
@@ -200,7 +204,8 @@ std::unique_ptr<LambdaRule> MakeSpawnedFromDroppedFile(const EntityModel* model)
             return source && !source->writer_pid.empty() && source->writer_pid != event.pid();
         });
     dropped->AddAction("kill_process");
-    dropped->AddAction("quarantine_file");
+    dropped->AddAction("quarantine_source");
+    dropped->AddAction("delete_dropped");
     return dropped;
 }
 

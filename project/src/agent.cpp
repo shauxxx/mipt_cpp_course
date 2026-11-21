@@ -16,6 +16,14 @@ Agent::Agent(bool quiet, uint64_t dedup_period_ms) : quiet_(quiet), engine_(Buil
 
 void Agent::HandleEvent(const Event& event) {
     model_.Observe(event);
+    if (responder_ != nullptr && responder_->Recognize(event)) {
+        WindowEntry entry;
+        entry.ts = event.ts();
+        entry.type = event.type();
+        entry.pid = event.pid();
+        window_.PushBack(std::move(entry));
+        return;
+    }
     std::vector<const IRule*> fired;
     ctxprint_ = false;
     engine_.ProcessEvent(event, &fired);
@@ -23,7 +31,11 @@ void Agent::HandleEvent(const Event& event) {
     detections_ += fired.size();
     ++total_;
     ++by_type_[event.type()];
-    window_.PushBack({event.ts(), event.type(), event.pid()});
+    WindowEntry entry;
+    entry.ts = event.ts();
+    entry.type = event.type();
+    entry.pid = event.pid();
+    window_.PushBack(std::move(entry));
 }
 
 void Agent::PrintSummary() const {
@@ -44,6 +56,13 @@ void Agent::PrintSummary() const {
     std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
     if (suppressed_ != 0) {
         std::print("[STAT] подавлено дубликатов {} (срок {} мс)\n", suppressed_, dedup_period_ms_);
+    }
+    if (responder_) {
+        std::print("[STAT] действий запланировано {}, повторов отброшено {}\n", responder_->stats().planned, responder_->stats().skipped_repeat);
+        std::print("[STAT] завершено процессов {}, изолировано файлов {}, удалено файлов {}\n", responder_->stats().killed, responder_->stats().quarantined, responder_->stats().deleted);
+        if (responder_->stats().own_events) {
+            std::print("[STAT] своих событий {}\n", responder_->stats().own_events);
+        }
     }
 }
 
@@ -77,4 +96,13 @@ void Agent::PrintContextOnce() {
         ctxprint_ = true;
     }
 }
+
+void Agent::EnableResponse(OsHandle* os, bool dry_run, const std::string& quarantine_dir) {
+    planner_ = std::make_unique<ResponsePlanner>(&model_, quarantine_dir);
+    responder_ = std::make_unique<Responder>(os, dry_run);
+    engine_.Subscribe([this](const Detection& detection) {
+        responder_->Execute(planner_->Plan(detection));
+    });
+}
+
 }  // namespace nano_edr

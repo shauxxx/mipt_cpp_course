@@ -46,4 +46,11 @@ bool EndIsLowerCase(const std::string& value1, const std::string& value2) {
     return EqualLowerCase(value1.substr(value1.size() - value2.size(), value2.size()), value2);
 }
 
+bool StartIsLowerCase(const std::string& value2, const std::string& value1) {
+    if (value1.size() < value2.size()) {
+        return false;
+    }
+    return EqualLowerCase(value1.substr(0, value2.size()), value2);
+}
+
 }  // namespace nano_edr
