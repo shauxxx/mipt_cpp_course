@@ -67,6 +67,14 @@ class RingBuffer {
         }
     }
 
+    void PushBack(T&& value) {
+        buffer_[head_] = std::move(value);
+        head_ = (head_ + 1) % N;
+        if (!full()) {
+            ++size_;
+        }
+    }
+
     void Clear() {
         size_ = 0;
         head_ = 0;

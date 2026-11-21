@@ -1,8 +1,10 @@
 #include "event.h"
+#include "copy_stats.h"
 
 #include <chrono>
 #include <stdexcept>
 #include <string>
+#include <charconv>
 
 namespace nano_edr {
 
@@ -39,18 +41,34 @@ EventType EventTypeFromString(const std::string& type) {
     return EventType::kOther;
 }
 
-Event::Event(const EventParts& parts) : ts_(ParseTimestamp(parts.ts)),
-                                        raw_ts_(parts.ts),
-                                        type_(parts.type),
-                                        event_type_(EventTypeFromString(parts.type)),
-                                        pid_(parts.pid),
-                                        fields_(parts.fields) {
-    if (raw_ts_.empty()) {
+Event::Event(const EventParts& parts) {
+    ts_ = Validate(parts.ts, parts.type);
+    raw_ts_ = parts.ts;
+    type_ = parts.type;
+    event_type_ = EventTypeFromString(type_);
+    pid_ = parts.pid;
+    fields_ = parts.fields;
+    copy_stats().event_strings_copied += 3 + 2 * parts.fields.size();
+}
+
+Event::Event(EventParts&& parts) {
+    ts_ = Validate(parts.ts, parts.type);
+    raw_ts_ = std::move(parts.ts);
+    type_ = std::move(parts.type);
+    event_type_ = EventTypeFromString(type_);
+    pid_ = std::move(parts.pid);
+    copy_stats().event_strings_moved += 3 + 2 * parts.fields.size();
+    fields_ = std::move(parts.fields);
+}
+
+Timestamp Event::Validate(const std::string& raw_ts, const std::string& type) {
+    if (raw_ts.empty()) {
         throw std::invalid_argument("ts не может быть пустым");
     }
-    if (type_.empty()) {
+    if (type.empty()) {
         throw std::invalid_argument("type не может быть пустым");
     }
+    return ParseTimestamp(raw_ts);
 }
 
 std::string ToString(const Event& event) {

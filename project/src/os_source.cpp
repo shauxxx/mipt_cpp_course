@@ -1,11 +1,11 @@
-#include "os_source.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
 
 #include "event.h"
+#include "os_source.h"
+#include "event_source.h"
 
 namespace nano_edr {
 
@@ -21,8 +21,7 @@ Event ConvertOsEventToEvent(const os_event* ev) {
         const os_kv& kv = ev->fields[i];
         parts.fields.push_back(Field{kv.key != nullptr ? kv.key : "", kv.value != nullptr ? kv.value : ""});
     }
-    const Event event(parts);
-    return event;
+    return Event(std::move(parts));
 }
 }  // namespace
 

@@ -10,14 +10,10 @@
 #include "event_source.h"
 #include "ring_buffer.h"
 #include "rule_engine.h"
+#include "window_entry.h"
+#include "response.h"
 
 namespace nano_edr {
-
-struct WindowEntry {
-    Timestamp ts;
-    std::string type;
-    std::string pid;
-};
 
 class Agent : public IEventHandler {
  public:
@@ -36,6 +32,8 @@ class Agent : public IEventHandler {
     void OnTick() override {};
 
     void Subscribe(AlertSink sink);
+
+    void EnableResponse(OsHandle* os, bool dry_run, const std::string& quarantine_dir);
 
  private:
     void PrintContext() const;
@@ -59,6 +57,9 @@ class Agent : public IEventHandler {
 
     uint64_t dedup_period_ms_{};
     std::size_t suppressed_{};
+
+    std::unique_ptr<ResponsePlanner> planner_{};
+    std::unique_ptr<Responder> responder_{};
 };
 
 }  // namespace nano_edr

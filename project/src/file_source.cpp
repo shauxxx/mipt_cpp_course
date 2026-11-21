@@ -35,7 +35,7 @@ void FileSource::Run(IEventHandler* handler) {
         }
 
         try {
-            const Event event(parts);
+            const Event event(std::move(parts));
             handler->HandleEvent(event);
         } catch (const std::exception& e) {
             std::print(stderr, "строка {} пропущена: {}\n", line_number,
